@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Black-Hole1 <bh@bugs.cc>
+Date: Fri, 27 Oct 2023 17:46:56 +0800
+Subject: refactor(process): kill self when current is orphan process
+
+The current process should also exit when the parent process exits.
+
+diff --git a/cmd/gvproxy/main.go b/cmd/gvproxy/main.go
+index 8e697751302c584466dd28169f62555e36cc6e8c..2a4e310348acaba691b63b3ae8b24d1b8fbfd59f 100644
+--- a/cmd/gvproxy/main.go
++++ b/cmd/gvproxy/main.go
+@@ -30,21 +30,22 @@ import (
+ )
+ 
+ var (
+-	debug           bool
+-	mtu             int
+-	endpoints       arrayFlags
+-	vpnkitSocket    string
+-	qemuSocket      string
+-	bessSocket      string
+-	stdioSocket     string
+-	vfkitSocket     string
+-	forwardSocket   arrayFlags
+-	forwardDest     arrayFlags
+-	forwardUser     arrayFlags
+-	forwardIdentify arrayFlags
+-	sshPort         int
+-	pidFile         string
+-	exitCode        int
++	debug                bool
++	mtu                  int
++	endpoints            arrayFlags
++	vpnkitSocket         string
++	qemuSocket           string
++	bessSocket           string
++	stdioSocket          string
++	vfkitSocket          string
++	forwardSocket        arrayFlags
++	forwardDest          arrayFlags
++	forwardUser          arrayFlags
++	forwardIdentify      arrayFlags
++	sshPort              int
++	pidFile              string
++	exitCode             int
++	disableOrphanProcess bool
+ )
+ 
+ const (
+@@ -55,6 +56,19 @@ const (
+ 	gateway     = "gateway"
+ )
+ 
++func killSelfWhenOrphanProcess() {
++	for {
++		time.Sleep(3 * time.Second)
++		if os.Getppid() == 1 {
++			err := syscall.Kill(os.Getpid(), syscall.SIGTERM)
++			if err != nil {
++				os.Exit(1)
++				return
++			}
++		}
++	}
++}
++
+ func main() {
+ 	flag.Var(&endpoints, "listen", "control endpoint")
+ 	flag.BoolVar(&debug, "debug", false, "Print debug info")
+@@ -69,6 +83,8 @@ func main() {
+ 	flag.Var(&forwardDest, "forward-dest", "Forwards a unix socket to the guest virtual machine over SSH")
+ 	flag.Var(&forwardUser, "forward-user", "SSH user to use for unix socket forward")
+ 	flag.Var(&forwardIdentify, "forward-identity", "Path to SSH identity key for forwarding")
++	flag.BoolVar(&disableOrphanProcess, "disable-orphan-process", false, "disable orphan process")
++
+ 	flag.StringVar(&pidFile, "pid-file", "", "Generate a file with the PID in it")
+ 	flag.Parse()
+ 
+@@ -231,6 +247,10 @@ func main() {
+ 		Protocol: protocol,
+ 	}
+ 
++	if disableOrphanProcess {
++		go killSelfWhenOrphanProcess()
++	}
++
+ 	groupErrs.Go(func() error {
+ 		return run(ctx, groupErrs, &config, endpoints)
+ 	})

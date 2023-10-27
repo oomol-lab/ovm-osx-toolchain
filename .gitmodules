@@ -1,0 +1,6 @@
+[submodule "gvproxy"]
+	path = gvproxy
+	url = https://github.com/containers/gvisor-tap-vsock.git
+[submodule "vfkit"]
+	path = vfkit
+	url = https://github.com/crc-org/vfkit.git

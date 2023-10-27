@@ -1,1 +1,2 @@
 refactor_process_kill_self_when_current_is_orphan_process.patch
+feat_rest_add_can_params_in_get_vm_state.patch

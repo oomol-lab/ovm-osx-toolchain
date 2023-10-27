@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Black-Hole1 <bh@bugs.cc>
+Date: Fri, 27 Oct 2023 17:48:55 +0800
+Subject: refactor(process): kill self when current is orphan process
+
+The current process should also exit when the parent process exits.
+
+diff --git a/cmd/vfkit/main.go b/cmd/vfkit/main.go
+index ea02dc02dd720e9c06c1b7925002245fd2ef99a5..f1c8039d519303d525dca847e70819d697c60856 100644
+--- a/cmd/vfkit/main.go
++++ b/cmd/vfkit/main.go
+@@ -38,6 +38,19 @@ import (
+ 	log "github.com/sirupsen/logrus"
+ )
+ 
++func killSelfWhenOrphanProcess() {
++	for {
++		time.Sleep(3 * time.Second)
++		if os.Getppid() == 1 {
++			err := syscall.Kill(os.Getpid(), syscall.SIGTERM)
++			if err != nil {
++				os.Exit(1)
++				return
++			}
++		}
++	}
++}
++
+ func newLegacyBootloader(opts *cmdline.Options) config.Bootloader {
+ 	if opts.VmlinuzPath == "" && opts.KernelCmdline == "" && opts.InitrdPath == "" {
+ 		return nil
+@@ -141,6 +154,11 @@ func runVFKit(vmConfig *config.VirtualMachine, opts *cmdline.Options) error {
+ 		}
+ 		srv.Start()
+ 	}
++
++	if opts.DisableOrphanProcess {
++		go killSelfWhenOrphanProcess()
++	}
++
+ 	return runVirtualMachine(vmConfig, vm)
+ }
+ 
+diff --git a/pkg/cmdline/cmdline.go b/pkg/cmdline/cmdline.go
+index d912240b650cb017ad4452780de7da95d0d9f392..307fb910cd1bda5339aeafb190bc62bfc15de411 100644
+--- a/pkg/cmdline/cmdline.go
++++ b/pkg/cmdline/cmdline.go
+@@ -23,6 +23,8 @@ type Options struct {
+ 	LogLevel string
+ 
+ 	UseGUI bool
++
++	DisableOrphanProcess bool
+ }
+ 
+ const DefaultRestfulURI = "none://"
+@@ -50,4 +52,6 @@ func AddFlags(cmd *cobra.Command, opts *Options) {
+ 	cmd.Flags().StringVar(&opts.LogLevel, "log-level", "", "set log level")
+ 	cmd.Flags().StringVar(&opts.RestfulURI, "restful-uri", DefaultRestfulURI, "URI address for RestFul services")
+ 
++	cmd.Flags().BoolVar(&opts.DisableOrphanProcess, "disable-orphan-process", false, "disable orphan process")
++
+ }

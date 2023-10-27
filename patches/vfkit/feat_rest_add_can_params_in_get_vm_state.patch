@@ -1,20 +1,21 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Black-Hole1 <bh@bugs.cc>
 Date: Wed, 25 Oct 2023 20:09:39 +0800
-Subject: feat(rest): add can* params in `GET /vm/state`
+Subject: feat(rest): support check status can be change
 
-Ref: https://github.com/crc-org/vfkit/pull/63
 
 diff --git a/doc/usage.md b/doc/usage.md
-index 4a13d50bb55ed4cc13cee868e79c1216dc6eb53b..671ba8324bfea3012d5f815671c5dc67f83bcbd9 100644
+index 4a13d50bb55ed4cc13cee868e79c1216dc6eb53b..9f0f8a0488aa331beafc43bb3e4dff2b3d9d6f99 100644
 --- a/doc/usage.md
 +++ b/doc/usage.md
-@@ -351,17 +351,17 @@ None
+@@ -351,17 +351,19 @@ None
  Used to obtain the state of the virtual machine that is being run by VFKit.
  
  GET `/vm/state`
 -Response: {"state": "string"}
-+Response: { "state": "string", "canPause": bool, "canResume": bool, "canStop": bool, "canHardStop": bool }
++Response: { "state": "string", "canStart": bool, "canPause": bool, "canResume": bool, "canStop": bool, "canHardStop": bool }
++
++> `canHardStop` only supported on macOS 12 and newer, false will always be returned  on older versions.
  
  ### Change VM State
  
@@ -31,13 +32,17 @@ index 4a13d50bb55ed4cc13cee868e79c1216dc6eb53b..671ba8324bfea3012d5f815671c5dc67
  Response: http 200
  
 diff --git a/pkg/rest/vf/state_change.go b/pkg/rest/vf/state_change.go
-index d7861f63cc1a39792fee35fe87bcec01e4270430..c6620f9c45b83f399f8ceed3f5c80131d18342c4 100644
+index d7861f63cc1a39792fee35fe87bcec01e4270430..df600c59bf16be3df885d21927248ddf85d74803 100644
 --- a/pkg/rest/vf/state_change.go
 +++ b/pkg/rest/vf/state_change.go
-@@ -53,3 +53,19 @@ func (vm *VzVirtualMachine) HardStop() error {
+@@ -53,3 +53,23 @@ func (vm *VzVirtualMachine) HardStop() error {
  	logrus.Debug("force stopping machine")
  	return vm.VzVM.Stop()
  }
++
++func (vm *VzVirtualMachine) CanStart() bool {
++	return vm.VzVM.CanStart()
++}
 +
 +func (vm *VzVirtualMachine) CanPause() bool {
 +	return vm.VzVM.CanPause()
@@ -52,19 +57,20 @@ index d7861f63cc1a39792fee35fe87bcec01e4270430..c6620f9c45b83f399f8ceed3f5c80131
 +}
 +
 +func (vm *VzVirtualMachine) CanHardStop() bool {
-+	return true
++	return vm.VzVM.CanStop()
 +}
 diff --git a/pkg/rest/vf/vm_config.go b/pkg/rest/vf/vm_config.go
-index d893208bb4ab1782c71e4484c0580f436cffb002..da34826a4857cdee23fa44af820d10d83542725c 100644
+index d893208bb4ab1782c71e4484c0580f436cffb002..82fc7a33b1cedc9ab108f39c32860dfdebd896fe 100644
 --- a/pkg/rest/vf/vm_config.go
 +++ b/pkg/rest/vf/vm_config.go
-@@ -33,7 +33,13 @@ func (vm *VzVirtualMachine) Inspect(c *gin.Context) {
+@@ -33,7 +33,14 @@ func (vm *VzVirtualMachine) Inspect(c *gin.Context) {
  // getVMState retrieves the current vm state
  func (vm *VzVirtualMachine) GetVMState(c *gin.Context) {
  	current := vm.GetState()
 -	c.JSON(http.StatusOK, gin.H{"state": current.String()})
 +	c.JSON(http.StatusOK, gin.H{
 +		"state":       current.String(),
++		"canStart":    vm.CanStart(),
 +		"canPause":    vm.CanPause(),
 +		"canResume":   vm.CanResume(),
 +		"canStop":     vm.CanStop(),

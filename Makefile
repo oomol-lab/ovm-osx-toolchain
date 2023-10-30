@@ -27,6 +27,7 @@ CODESIGN_IDENTITY ?= -
 	@case $(_DIR) in \
 		gvproxy) \
 			GOARCH=$(_ARCH) $(GO_BUILD) -C $(ROOTDIR)/gvproxy/ -ldflags '-s -w' -o $(ROOTDIR)/out/gvproxy-$(_ARCH) ./cmd/gvproxy; \
+			codesign --force --options runtime --sign $(CODESIGN_IDENTITY) $(ROOTDIR)/out/gvproxy-$(_ARCH); \
 			;; \
 		vfkit) \
 			CGO_ENABLED=1 CGO_CFLAGS=-mmacosx-version-min=12.3 GOARCH=$(_ARCH) $(GO_BUILD) -C $(ROOTDIR)/vfkit/ -o $(ROOTDIR)/out/vfkit-$(_ARCH) ./cmd/vfkit; \

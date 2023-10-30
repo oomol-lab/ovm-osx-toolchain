@@ -10,9 +10,6 @@ UNAME := $(shell uname -s)
 AWK := awk
 ifeq ($(UNAME), Darwin)
 	AWK = gawk
-    ifeq (, $(shell which gawk 2> /dev/null))
-        $(error "gawk not found")
-    endif
 endif
 
 CODESIGN_IDENTITY ?= -
@@ -97,6 +94,11 @@ clean: ##@ Clean all build files
 
 help: ##@ (Default) Print listing of key targets with their descriptions
 	@printf "\nUsage: make <command>\n"
+	@if [[ -z $(shell which $(AWK) 2> /dev/null) ]]; then \
+		printf "$(AWK) not found\n"; \
+		exit 1; \
+	fi; \
+
 	@grep -F -h "##@" $(MAKEFILE_LIST) | grep -F -v grep -F | sed -e 's/\\$$//' | $(AWK) 'BEGIN {FS = ":*[[:space:]]*##@[[:space:]]*"}; \
 	{ \
 		if($$2 == "") \

@@ -32,6 +32,7 @@ CODESIGN_IDENTITY ?= -
 			CGO_ENABLED=1 CGO_CFLAGS=-mmacosx-version-min=12.3 GOARCH=$(_ARCH) $(GO_BUILD) -C $(ROOTDIR)/vfkit/ -o $(ROOTDIR)/out/vfkit-$(_ARCH) ./cmd/vfkit; \
 			if [[ "$(UNAME)" = "Darwin" ]]; then \
 				codesign --force --options runtime --entitlements $(ROOTDIR)/vfkit/vf.entitlements --sign $(CODESIGN_IDENTITY) $(ROOTDIR)/out/vfkit-$(_ARCH); \
+				codesign -vv -d $(ROOTDIR)/out/vfkit-$(_ARCH); \
 			fi; \
 			;; \
 		*) \
